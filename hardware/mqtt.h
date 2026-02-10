@@ -8,7 +8,7 @@
 #ifndef _MQTT_H
 #define _MQTT_H 1
 #endif
-
+#include <WiFi.h>
 #include <PubSubClient.h>
 
 // NOTES:
@@ -26,8 +26,8 @@ void vUpdateFunction( void );
 
 
 /* create an instance of PubSubClient client */ 
-WiFiClient espClient; 
-PubSubClient mqtt(espClient); 
+extern WiFiClient espClient;
+extern PubSubClient mqtt;
  
 
 
