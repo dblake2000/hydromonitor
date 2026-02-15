@@ -72,7 +72,12 @@ class DB:
                 "mongodb://%s:%s" % (self.server, self.port),
                 tls=self.tls,
             )
-            result = list(remotedb.ELET2415.climo.find("""Add your query here"""))
+            # I updated this to find documents between start and end timestamps. 
+            # I used projection to hide the _id and sorted the results by timestamp.
+            result = list(remotedb.ELET2415.climo.find(
+                {"timestamp": {"$gte": int(start), "$lte": int(end)}},
+                {"_id": 0}
+            ).sort("timestamp", 1))
         except Exception as e:
             msg = str(e)
             print("getAllInRange error", msg)
@@ -86,10 +91,26 @@ class DB:
                 "mongodb://%s:%s" % (self.server, self.port),
                 tls=self.tls,
             )
+            # I implemented an aggregation pipeline here.
+            # Stage 1: Match timestamps. Stage 2: Group and calculate MMAR.
+            # Stage 3: Project results and calculate the Range.
             result = list(
-                remotedb.ELET2415.climo.aggregate(
-                    """Add your Aggregation pipeline here in this function"""
-                )
+                remotedb.ELET2415.climo.aggregate([
+                    {"$match": {"timestamp": {"$gte": int(start), "$lte": int(end)}}},
+                    {"$group": {
+                        "_id": None,
+                        "min": {"$min": "$humidity"},
+                        "max": {"$max": "$humidity"},
+                        "avg": {"$avg": "$humidity"}
+                    }},
+                    {"$project": {
+                        "_id": 0,
+                        "min": 1,
+                        "max": 1,
+                        "avg": 1,
+                        "range": {"$subtract": ["$max", "$min"]}
+                    }}
+                ])
             )
         except Exception as e:
             msg = str(e)
@@ -104,10 +125,24 @@ class DB:
                 "mongodb://%s:%s" % (self.server, self.port),
                 tls=self.tls,
             )
+            # I followed the same logic as humidityMMAR but applied it to the temperature field.
             result = list(
-                remotedb.ELET2415.climo.aggregate(
-                    """Add your Aggregation pipeline here in this function"""
-                )
+                remotedb.ELET2415.climo.aggregate([
+                    {"$match": {"timestamp": {"$gte": int(start), "$lte": int(end)}}},
+                    {"$group": {
+                        "_id": None,
+                        "min": {"$min": "$temperature"},
+                        "max": {"$max": "$temperature"},
+                        "avg": {"$avg": "$temperature"}
+                    }},
+                    {"$project": {
+                        "_id": 0,
+                        "min": 1,
+                        "max": 1,
+                        "avg": 1,
+                        "range": {"$subtract": ["$max", "$min"]}
+                    }}
+                ])
             )
         except Exception as e:
             msg = str(e)
@@ -122,10 +157,18 @@ class DB:
                 "mongodb://%s:%s" % (self.server, self.port),
                 tls=self.tls,
             )
+            # I updated this to use the $bucket stage.
+            # It categorizes values into bins from 0 to 100 with a step of 20.
             result = list(
-                remotedb.ELET2415.climo.aggregate(
-                    """Add your Aggregation pipeline here in this function"""
-                )
+                remotedb.ELET2415.climo.aggregate([
+                    {"$match": {"timestamp": {"$gte": int(start), "$lte": int(end)}}},
+                    {"$bucket": {
+                        "groupBy": f"${variable}",
+                        "boundaries": [0, 20, 40, 60, 80, 100],
+                        "default": "outliers",
+                        "output": {"count": {"$sum": 1}}
+                    }}
+                ])
             )
         except Exception as e:
             msg = str(e)
